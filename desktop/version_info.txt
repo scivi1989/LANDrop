@@ -1,0 +1,31 @@
+# Windows 文件版本信息（写入 LANDrop.exe 属性 → 详细信息）
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(2, 2, 0, 0),
+    prodvers=(2, 2, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          '080404B0',
+          [StringStruct('CompanyName', 'scivi'),
+           StringStruct('FileDescription', 'LAN Drop 局域网文件互传'),
+           StringStruct('FileVersion', '2.2.0.0'),
+           StringStruct('InternalName', 'LANDrop'),
+           StringStruct('LegalCopyright', '© 2026 scivi · 保留所有权利'),
+           StringStruct('LegalTrademarks', 'scivi'),
+           StringStruct('OriginalFilename', 'LANDrop.exe'),
+           StringStruct('ProductName', 'LAN Drop'),
+           StringStruct('ProductVersion', '2.2.0.0'),
+           StringStruct('Comments', 'scivi 开发 · MIT 开源许可 · https://github.com/scivi1989/LANDrop')])
+      ]),
+    VarFileInfo([VarStruct('Translation', [2052, 1200])])
+  ]
+)

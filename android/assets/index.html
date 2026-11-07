@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>LAN Drop</title>
+<script>
+/* 提前占位：Java 侧可能在页面脚本就绪前推送事件 */
+window.onPeers = function(){};
+window.onText = function(){};
+window.onFile = function(){};
+window.onProgress = function(){};
+window.onLog = function(){};
+window.onBubble = function(){};
+window.onSendDone = function(){};
+window.onPasteDone = function(){};
+window.onDestChanged = function(){};
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:#f2f5fa;color:#111827;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+display:flex;flex-direction:column;overflow:hidden}
+
+/* ---------- 顶部：品牌 + 我的设备名（固定，不滚动） ---------- */
+header{padding:calc(12px + env(safe-area-inset-top)) 16px 10px;background:#fff;border-bottom:1px solid #e9eef6;flex:0 0 auto}
+.brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.16)}
+.brand small{font-size:11px;font-weight:400;color:#6b7280;margin-left:2px}
+.mine{margin-top:8px;display:flex;align-items:center;gap:6px;font-size:12.5px;color:#6b7280}
+.mine b{color:#111827;font-weight:600;font-size:13px}
+.mine .edit{color:#2563eb;font-size:11.5px;padding:2px 7px;border:1px solid #dbe6fb;border-radius:99px}
+
+/* ---------- 设备区：固定高度，横向滑动，不随消息滚动 ---------- */
+#devbar{flex:0 0 auto;background:#fff;border-bottom:1px solid #e9eef6;padding:0 12px 10px}
+.dhead{display:flex;align-items:center;gap:6px;padding:9px 2px 8px;font-size:12px;color:#6b7280}
+.dhead b{color:#111827;font-size:12.5px;font-weight:600}
+.dhead .n{background:#e8f0ff;color:#2563eb;border-radius:99px;padding:0 7px;font-size:10.5px}
+.dhead #status{margin-left:auto;font-size:11.5px;color:#8b95a5}
+.devs{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding-bottom:2px;
+scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;min-height:56px;padding:6px 4px 2px 2px}
+.devs::-webkit-scrollbar{display:none;height:0}
+.dev{flex:0 0 auto;width:auto;min-width:132px;max-width:216px;scroll-snap-align:start;display:flex;align-items:center;gap:8px;
+background:#f8fafd;border:1.5px solid #e9eef6;border-radius:13px;padding:9px 10px;transition:.15s;position:relative}
+.dev.on{border-color:#2563eb;background:#f0f6ff;box-shadow:0 2px 10px rgba(37,99,235,.12)}
+.dev .av{width:30px;height:30px;border-radius:9px;background:#eef2ff;display:flex;align-items:center;
+justify-content:center;font-size:16px;flex:0 0 auto}
+.dev.on .av{background:#dbeafe}
+.dev .info{flex:1;min-width:0}
+.dev .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev .ip{font-size:10.5px;color:#8b95a5;margin-top:1px}
+.dev .tick{position:absolute;top:-6px;right:-4px;width:17px;height:17px;border-radius:50%;border:1.5px solid #d6dfec;background:#fff;flex:0 0 auto}
+.dev.on .tick{border:none;background:#2563eb;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff}
+.dev.on .tick::after{content:"✓"}
+.devs .empty{flex:0 0 auto;color:#8b95a5;font-size:12.5px;padding:16px 10px;line-height:1.6}
+.devs .empty small{color:#a6b0bf}
+
+/* ---------- 消息区：独立滚动 ---------- */
+main{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 12px}
+.mhead{position:sticky;top:0;z-index:5;background:#f2f5fa;padding:10px 2px 8px;
+font-size:12px;color:#6b7280;font-weight:600;display:flex;align-items:center;gap:6px}
+.mhead .n{background:#e8f0ff;color:#2563eb;border-radius:99px;padding:0 7px;font-size:10.5px}
+.empty{text-align:center;color:#8b95a5;font-size:13px;padding:26px 10px;line-height:1.7}
+.msg{margin-bottom:10px;display:flex;flex-direction:column}
+.msg.me{align-items:flex-end}
+.bub{max-width:80%;padding:9px 12px;border-radius:13px;font-size:13.5px;line-height:1.5;
+background:#fff;border:1px solid #e9eef6;word-break:break-word;white-space:pre-wrap}
+.msg.me .bub{background:#2563eb;border-color:#2563eb;color:#fff}
+.meta{font-size:10.5px;color:#9aa4b2;margin:0 4px 3px}
+.file{display:flex;align-items:center;gap:8px}
+.file .open{font-size:11.5px;color:#2563eb;border:1px solid #dbe6fb;border-radius:99px;padding:2px 9px;margin-left:6px}
+.bub img.shot{max-width:190px;max-height:190px;border-radius:9px;display:block;margin-bottom:6px;background:#eef2f8}
+
+/* ---------- 底部输入（固定） ---------- */
+.progress{height:3px;background:#2563eb;width:0;position:fixed;top:0;left:0;z-index:50;transition:width .15s}
+footer{background:#fff;border-top:1px solid #e9eef6;padding:9px 12px calc(9px + env(safe-area-inset-bottom));flex:0 0 auto}
+.row{display:flex;gap:8px;align-items:center}
+input[type=text]{flex:1;border:1px solid #e3e8f0;background:#f7f9fd;border-radius:11px;padding:10px 12px;
+font-size:14px;font-family:inherit;outline:none}
+input[type=text]:focus{border-color:#2563eb;background:#fff}
+.btn{border:none;border-radius:11px;padding:10px 15px;font-size:13.5px;color:#fff;background:#2563eb;
+font-family:inherit;font-weight:500}
+.btn:disabled{background:#bccbe8}
+.btn.ghost{background:#eef2f8;color:#374151;padding:10px 12px}
+.hint{font-size:11px;color:#8b95a5;margin-top:6px;height:14px}
+.toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(30px);background:#111827;
+color:#fff;font-size:12.5px;padding:8px 15px;border-radius:99px;opacity:0;transition:.25s;max-width:86vw;z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.sheet{position:fixed;inset:0;background:rgba(17,24,39,.35);display:none;align-items:center;justify-content:center;z-index:70}
+.sheet.show{display:flex}
+.sheet .box{background:#fff;border-radius:16px;padding:18px;width:82%;max-width:320px}
+.sheet h4{font-size:14px;margin-bottom:12px}
+.sheet input{width:100%;border:1px solid #e3e8f0;border-radius:10px;padding:10px;font-size:14px;outline:none}
+.sheet .acts{display:flex;gap:8px;margin-top:14px}
+.sheet .acts button{flex:1;padding:9px;border-radius:10px;border:none;font-size:13.5px;font-family:inherit}
+.sheet .acts .ok{background:#2563eb;color:#fff}
+.sheet .acts .no{background:#eef2f8;color:#374151}
+
+/* ---------- 接收文件面板 ---------- */
+.mine .inboxBtn{margin-left:auto}
+.inboxBox{max-height:74vh;display:flex;flex-direction:column;width:86%}
+.inboxBox h4{display:flex;align-items:center;gap:6px}
+.inboxBox h4 .n{background:#e8f0ff;color:#2563eb;border-radius:99px;padding:0 7px;font-size:10.5px;font-weight:600}
+.inboxBox h4 .copyPath{margin-left:auto;font-size:11.5px;color:#2563eb;font-weight:400}
+.inboxBox .path{font-size:11px;color:#6b7280;background:#f7f9fd;border:1px solid #eef2f8;border-radius:9px;
+padding:7px 9px;word-break:break-all;line-height:1.45;-webkit-user-select:text;user-select:text}
+.inboxBox .destOps{display:flex;gap:7px;margin-top:7px}
+.inboxBox .destOps button{flex:1;padding:7px 6px;border-radius:9px;border:1px solid #dbe6fb;background:#f2f7ff;
+color:#2563eb;font-size:12px;font-family:inherit}
+.inboxBox .destOps button.ghost{border-color:#e6eaf2;background:#f5f7fb;color:#5b6472}
+.inboxBox .tips{font-size:10.5px;color:#9aa4b2;margin-top:6px;line-height:1.5}
+.inboxBox .about{font-size:10.5px;color:#9aa4b2;text-align:center;padding:10px 0 2px;letter-spacing:.2px}
+.inboxBox .files{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:8px 0 2px;
+border:1px solid #eef2f8;border-radius:12px;padding:0 8px;min-height:56px;max-height:44vh}
+.fitem{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #f1f5fa}
+.fitem:last-child{border-bottom:none}
+.fic{font-size:18px;flex:0 0 auto;width:22px;text-align:center}
+.finfo{flex:1;min-width:0}
+.fname{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsub{font-size:10.5px;color:#8b95a5;margin-top:1px}
+.fopen{font-size:11.5px;color:#2563eb;border:1px solid #dbe6fb;border-radius:99px;padding:2px 9px;flex:0 0 auto}
+</style>
+</head>
+<body>
+<div class="progress" id="bar"></div>
+
+<header>
+  <div class="brand"><span class="dot"></span>LAN Drop <small>局域网快传 · scivi 开发</small></div>
+  <div class="mine">我：<b id="myName">…</b><span class="edit" onclick="askName()">改名</span>
+    <span class="edit inboxBtn" onclick="openInbox()">📂 接收文件</span></div>
+</header>
+
+<section id="devbar">
+  <div class="dhead"><b>在线设备</b><span class="n" id="devCount">0</span>
+    <span id="status">正在查找设备…</span></div>
+  <div class="devs" id="devices">
+    <div class="empty">正在查找局域网设备…<br><small>让其他设备打开 LAN Drop 即可出现</small></div>
+  </div>
+</section>
+
+<main id="main">
+  <div class="mhead">消息 <span class="n" id="msgCount">0</span></div>
+  <div id="msgs"><div class="empty">还没有消息<br><small>选择上方设备后发送文件或文字</small></div></div>
+</main>
+
+<footer>
+  <div class="row">
+    <input type="text" id="msg" placeholder="输入文字；长按粘贴可发剪贴板图片…" onpaste="onPaste(event)">
+    <button class="btn" id="sendBtn" onclick="sendText()">发送</button>
+    <button class="btn ghost" onclick="pickFiles()">📎</button>
+  </div>
+  <div class="hint" id="hint"></div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<div class="sheet" id="sheet">
+  <div class="box">
+    <h4>修改设备名（其他设备会看到）</h4>
+    <input type="text" id="nameInput" maxlength="24">
+    <div class="acts"><button class="no" onclick="closeSheet()">取消</button>
+      <button class="ok" onclick="saveName()">确定</button></div>
+  </div>
+</div>
+
+<!-- 接收文件面板：显示保存路径 + 已收文件列表 -->
+<div class="sheet" id="inbox">
+  <div class="box inboxBox">
+    <h4>接收文件 <span class="n" id="inboxCount">0</span>
+      <span class="copyPath" onclick="copyPathJs()">复制路径</span></h4>
+    <div class="path" id="inboxPath" onclick="copyPathJs()">正在读取…</div>
+    <div class="destOps">
+      <button onclick="chooseDest()">更改接收目录</button>
+      <button class="ghost" onclick="resetDest()">恢复默认</button>
+    </div>
+    <div class="tips" id="destTips"></div>
+    <div class="files" id="inboxList"></div>
+    <div class="about">LAN Drop v2.2 · scivi 开发 · © 2026 scivi · MIT 开源许可</div>
+    <div class="acts">
+      <button class="no" onclick="closeInbox()">关闭</button>
+      <button class="ok" onclick="openFolderSystem()">文件管理器打开</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var peers = [], selected = {}, myName = "", msgCount = 0;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+  return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; }); }
+function size(n){ if(n<1024) return n+" B";
+  var u=["KB","MB","GB"], i=-1; do{ n/=1024; i++; }while(n>=1024 && i<2);
+  return n.toFixed(1)+" "+u[i]; }
+function now(){ var d=new Date(), p=function(x){return (x<10?"0":"")+x;};
+  return p(d.getHours())+":"+p(d.getMinutes()); }
+function toast(t){ var e=$("toast"); e.textContent=t; e.classList.add("show");
+  clearTimeout(e._t); e._t=setTimeout(function(){ e.classList.remove("show"); },2000); }
+function osIcon(os){ return {"Windows":"💻","Mac":"🖥️","Linux":"🐧","Android":"📱"}[os] || "📱"; }
+function fileIcon(n){ var e=String(n).split(".").pop().toLowerCase();
+  var m={jpg:"🖼️",jpeg:"🖼️",png:"🖼️",gif:"🖼️",webp:"🖼️",mp4:"🎬",mov:"🎬",mp3:"🎵",wav:"🎵",
+    zip:"🗜️",rar:"🗜️","7z":"🗜️",pdf:"📕",doc:"📄",docx:"📄",xls:"📊",xlsx:"📊",ppt:"📽️",pptx:"📽️",
+    txt:"📝",apk:"🤖",exe:"⚙️"};
+  return m[e] || "📦"; }
+
+/* ---------- Java 调用 ---------- */
+window.onPeers = function(list){
+  peers = list || [];
+  var keep = selected, next = {};
+  for (var i=0;i<peers.length;i++){ if (keep[peers[i].id]) next[peers[i].id]=true; }
+  selected = next;
+  renderDevices();
+};
+window.onText = function(o){
+  addMsg("them", esc(o.text), o.from + " · " + now());
+  toast("收到 " + o.from + " 的消息");
+};
+window.onFile = function(o){
+  var p = String(o.path || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  var head = o.thumb ? '<img class="shot" src="' + o.thumb + '" onclick="openFile(\'' + p + '\')">' : "";
+  var icon = o.thumb ? "" : '<span>' + fileIcon(o.name) + '</span>';
+  addMsg("them", head + '<div class="file">' + icon + '<span>' + esc(o.name) +
+    '</span><span style="color:#8b95a5;font-size:11px">' + size(o.size) + '</span>' +
+    '<span class="open" onclick="openFile(\'' + p + '\')">打开</span></div>',
+    o.from + " · " + now());
+  toast((o.image ? "🖼 收到图片：" : "📨 收到文件：") + o.name);
+  setHint("");
+  hideBar();
+  if ($("inbox").classList.contains("show")) openInbox();
+};
+window.onProgress = function(o){
+  var pct = o.total ? Math.round(o.done*100/o.total) : 0;
+  $("bar").style.width = pct + "%";
+  setHint("传输中 " + pct + "% · " + o.name);
+  if (pct >= 100) setTimeout(hideBar, 700);
+};
+window.onBubble = function(o){ addMsg("me", esc(o.title), o.meta); };
+window.onSendDone = function(){ hideBar(); setHint("✅ 发送完成"); setTimeout(function(){setHint("");},2000); };
+window.onLog = function(t){ setHint(t); };
+
+/* ---------- 设备列表（顶部固定区，横向滑动） ---------- */
+function renderDevices(){
+  var box = $("devices"), html = "";
+  $("devCount").textContent = peers.length;
+  $("status").textContent = peers.length ? ("在线 " + peers.length + " 台") : "暂无其他设备";
+  if (!peers.length){
+    box.innerHTML = '<div class="empty">正在查找局域网设备…<br><small>让其他设备打开 LAN Drop 即可出现</small></div>';
+  } else {
+    for (var i=0;i<peers.length;i++){
+      var p = peers[i], on = selected[p.id] ? " on" : "";
+      html += '<div class="dev'+on+'" onclick="toggle(\''+p.id+'\')">'+
+        '<div class="av">'+osIcon(p.os)+'</div>'+
+        '<div class="info"><div class="nm">'+esc(p.name)+'</div><div class="ip">'+p.ip+'</div></div>'+
+        '<div class="tick"></div></div>';
+    }
+    box.innerHTML = html;
+  }
+  updateSend();
+}
+function toggle(id){
+  if (selected[id]) delete selected[id]; else selected[id]=true;
+  renderDevices();
+}
+function selectedIds(){
+  var out = [];
+  for (var k in selected) if (selected[k]) out.push(k);
+  return out;
+}
+function updateSend(){
+  var n = selectedIds().length;
+  $("sendBtn").textContent = n>1 ? ("发送(" + n + ")") : "发送";
+  $("sendBtn").disabled = n===0;
+}
+
+/* ---------- 消息区（独立滚动） ---------- */
+function addMsg(side, html, meta){
+  var box = $("msgs");
+  if (box.querySelector(".empty")) box.innerHTML = "";
+  var d = document.createElement("div");
+  d.className = "msg " + (side === "me" ? "me" : "them");
+  d.innerHTML = '<div class="meta">'+esc(meta)+'</div><div class="bub">'+html+'</div>';
+  box.appendChild(d);
+  msgCount++;
+  $("msgCount").textContent = msgCount;
+  var m = $("main");
+  m.scrollTop = m.scrollHeight;
+}
+function setHint(t){ $("hint").textContent = t || ""; }
+function hideBar(){ $("bar").style.width = "0"; }
+
+/* ---------- 操作 ---------- */
+function sendText(){
+  var text = $("msg").value.trim();
+  var ids = selectedIds();
+  if (!ids.length){ toast("请先选择接收设备"); return; }
+  if (!text){ toast("请输入内容"); return; }
+  LD.sendText(JSON.stringify(ids), text);
+  var names = peers.filter(function(p){ return selected[p.id]; })
+                   .map(function(p){ return p.name; }).join("、");
+  addMsg("me", esc(text), "我 → " + names + " · " + now());
+  $("msg").value = "";
+}
+function pickFiles(){
+  var ids = selectedIds();
+  if (!ids.length){ toast("请先选择接收设备"); return; }
+  setHint("选择要发送的文件…");
+  LD.pickFiles(JSON.stringify(ids));
+}
+/* 粘贴：剪贴板里是图片就直接发出去，否则走正常文字粘贴 */
+function onPaste(e){
+  var ids = selectedIds();
+  if (!ids.length) return;
+  try {
+    if (LD.pasteImage(JSON.stringify(ids))) {
+      e.preventDefault();
+      setHint("正在发送剪贴板图片…");
+    }
+  } catch(err) {}
+}
+window.onPasteDone = function(){
+  hideBar();
+  setHint("✅ 图片已发送");
+  setTimeout(function(){ setHint(""); }, 2000);
+};
+function openFile(path){ LD.openFile(path); }
+
+/* ---------- 接收文件面板 ---------- */
+var inboxFiles = [];
+function fmtTime(ms){ var d = new Date(ms || Date.now()), p = function(x){ return (x<10?"0":"")+x; };
+  return p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+function openInbox(){
+  var list = [];
+  try { list = JSON.parse(LD.listReceived() || "[]"); } catch(e) { list = []; }
+  inboxFiles = list;
+  $("inboxCount").textContent = list.length;
+  var p = "";
+  try { p = LD.destPath() || ""; } catch(e) {}
+  $("inboxPath").textContent = p || "接收目录";
+  var kind = "private";
+  try { kind = LD.destKind() || "private"; } catch(e) {}
+  $("destTips").textContent = kind === "saf"
+    ? "自选目录（已授权）：收到的文件直接保存到这里，重启 App 仍然有效。"
+    : "App 默认目录：点“更改接收目录”可挑选手机里任意文件夹（下载、相册、SD 卡等）。";
+  var box = $("inboxList");
+  if (!list.length){
+    box.innerHTML = '<div class="empty" style="padding:16px 6px;font-size:12.5px">还没有接收过文件</div>';
+  } else {
+    var html = "";
+    for (var i=0;i<list.length;i++){
+      var f = list[i];
+      html += '<div class="fitem"><span class="fic">'+fileIcon(f.name)+'</span>'+
+        '<div class="finfo"><div class="fname">'+esc(f.name)+'</div>'+
+        '<div class="fsub">'+size(f.size)+' · '+fmtTime(f.time)+'</div></div>'+
+        '<span class="fopen" onclick="openIndex('+i+')">打开</span></div>';
+    }
+    box.innerHTML = html;
+  }
+  $("inbox").classList.add("show");
+}
+function closeInbox(){ $("inbox").classList.remove("show"); }
+function openIndex(i){ var f = inboxFiles[i]; if (f) LD.openFile(f.path); }
+function openFolderSystem(){ LD.openFolder(); }
+function copyPathJs(){ LD.copyPath(); toast("接收目录路径已复制"); }
+
+/* ---------- 自定义接收目录 ---------- */
+function chooseDest(){ LD.chooseDest(); }
+function resetDest(){
+  LD.resetDest();
+  toast("已恢复默认接收目录");
+  setTimeout(function(){ if ($("inbox").classList.contains("show")) openInbox(); }, 400);
+}
+window.onDestChanged = function(){
+  var p = "";
+  try { p = LD.destPath() || ""; } catch(e) {}
+  setHint("接收目录：" + p);
+  if ($("inbox").classList.contains("show")) openInbox();
+};
+function askName(){
+  $("nameInput").value = myName;
+  $("sheet").classList.add("show");
+  $("nameInput").focus();
+}
+function closeSheet(){ $("sheet").classList.remove("show"); }
+function saveName(){
+  var v = $("nameInput").value.trim();
+  if (v){ LD.setName(v); myName = v; $("myName").textContent = v; }
+  closeSheet();
+}
+
+/* ---------- 初始化 ---------- */
+(function init(){
+  var info = {};
+  try { info = JSON.parse(LD.info()); } catch(e) {}
+  myName = info.name || "本机";
+  $("myName").textContent = myName;
+  setHint("接收目录：" + (info.dest || ""));
+})();
+</script>
+</body>
+</html>
